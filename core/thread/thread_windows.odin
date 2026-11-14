@@ -92,6 +92,11 @@ _create :: proc(procedure: Thread_Proc, priority: Thread_Priority, name: Maybe(s
 
 _start :: proc(t: ^Thread) {
 	sync.guard(&t.mutex)
+	_start_locked(t)
+}
+
+// The caller must hold t.mutex. _join already holds it, and the mutex is not recursive.
+_start_locked :: proc(t: ^Thread) {
 	t.flags += {.Started}
 	win32.ResumeThread(t.win32_thread)
 }
@@ -111,7 +116,7 @@ _join :: proc(t: ^Thread) {
 	}
 
 	for (.Started not_in sync.atomic_load(&t.flags)) {
-		_start(t)
+		_start_locked(t)
 	}
 
 	win32.WaitForSingleObject(t.win32_thread, win32.INFINITE)
